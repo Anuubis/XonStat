@@ -109,11 +109,11 @@ function applyOptions(gt, options) {
 function createGameTypeStrategy(gametype) {
   var ValidFactoriesForGametype = {
     "duel": ["duel", "qcon_duel"],
-    "ffa": ["ffa", "mg_ffa_classic"],
+    "ffa": ["ffa", "mg_ffa_classic", "cffa"],
     "ca": ["ca", "capickup"],
     "tdm": ["ctdm", "qcon_tdm"],
     "ctf": ["ctf", "ctf2", "qcon_ctf"],
-    "ft": ["freeze", "cftag", "ft", "ftclassic", "ft_classic", "mg_ft_fullclassic", "vft"]
+    "ft": ["freeze", "cftag", "ft", "ftclassic", "ft_classic", "mg_ft_fullclassic", "vft", "cuft"]
   }
   var MinRequiredPlayersForGametype = {
     "duel": 2,
