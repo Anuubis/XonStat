@@ -24,17 +24,18 @@ function buildColumnInfo() {
   var columns = [0];
   var columnsMap = {};
   var series = [];
-
   var seriesMap = [];
+  var weapons = (getCookie("weapons") || "").split(",");
+
   Object.keys(weaponColors).forEach(function(w, i) {
-    seriesMap.push({ column: 1 + i * 2, roleColumns: [1 + i * 2 + 1], color: weaponColors[w], display: true });
+    seriesMap.push({ column: 1 + i * 2, roleColumns: [1 + i * 2 + 1], color: weaponColors[w], display: weapons.indexOf(w) >= 0, weapon: w });
   });
 
   for (var i = 0; i < seriesMap.length; i++) {
     var col = seriesMap[i].column;
     columnsMap[col] = i;
     // set the default series option
-    series[i] = { color: seriesMap[i].color, backupColor: seriesMap[i].color };
+    series[i] = { color: seriesMap[i].color, backupColor: seriesMap[i].color, weapon: seriesMap[i].weapon };
     if (seriesMap[i].display) {
       // if the column is the domain column or in the default list, display the series
       columns.push(col);
@@ -42,8 +43,8 @@ function buildColumnInfo() {
     else {
       // otherwise, hide it
       columns.push({
-        label: data.getColumnLabel(col),
-        type: data.getColumnType(col),
+        label: seriesMap[i].weapon.toUpperCase(),
+        type: "number",
         sourceColumn: col,
         calc: function() { return null; }
       });
@@ -86,12 +87,21 @@ function showHideSeries(chart, data, col) {
   view.columns = columns;
   chart.setView(view);
   chart.draw();
+
+  var weapons = getCookie("weapons").split(",");
+  var w = series[columnsMap[src]].weapon;
+  var idx = weapons.indexOf(w);
+  if (idx >= 0)
+    weapons.splice(idx, 1);
+  else
+    weapons.push(w);
+  setCookie("weapons", weapons.join(","));
 }
 
 
 // Flatten the existing weaponstats JSON requests to ease indexing
-var flatten = function (weaponData) {
-  flattened = {}
+function flatten(weaponData) {
+  var flattened = {}
 
   // each game is a key entry...
   weaponData.games.forEach(function (e, i) { flattened[e] = {}; });
@@ -113,7 +123,8 @@ function accuracyValue(gameWeaponStats, weapon) {
     return null;
   }
   var ws = gameWeaponStats[weapon];
-  var pct = ws.fired < 10 ? Number.NaN : Math.round((ws.hit / ws.fired) * 100);
+  var minShots = "gl,rl,rg".indexOf(weapon) < 0 ? 10 : 4;
+  var pct = ws.fired < minShots ? Number.NaN : Math.round((ws.hit / ws.fired) * 100);
 
   return pct;
 }

@@ -1,4 +1,4 @@
-import datetime
+﻿import datetime
 import logging
 import pyramid.httpexceptions
 import re
@@ -6,6 +6,7 @@ import time
 from pyramid.response import Response
 from sqlalchemy import desc
 from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
+from sqlalchemy.sql.expression import *
 from sqlalchemy import func
 from xonstat.models import *
 from xonstat.util import strip_colors, qfont_decode
@@ -14,23 +15,24 @@ from webhelpers.paginate import Page, PageURL
 
 log = logging.getLogger(__name__)
 
-def search_q(nick=None, server_name=None, map_name=None, create_dt=None,
-        gametypes=[]):
+def search_q(nick=None, server_name=None, map_name=None, create_dt=None, gametypes=[]):
     session     = DBSession()
     result_type = None
     q           = None
 
     # player-only searches
-    if nick and not server_name and not map_name and not create_dt \
-        and len(gametypes) < 1:
+    if nick and not server_name and not map_name and not create_dt and len(gametypes) < 1:
         result_type = "player"
-        q = session.query(Player)
-        if nick:
-            q = q.filter(
-                    func.upper(Player.stripped_nick).like('%'+nick.upper()+'%')).\
-                    filter(Player.player_id > 2).\
-                    filter(Player.active_ind == True).\
-                    order_by(Player.player_id)
+        q1 = session.query(Player.player_id, Player.nick, Player.stripped_nick, Player.create_dt, literal_column("0").label("is_alias")).\
+                filter(func.upper(Player.stripped_nick).like('%'+nick.upper()+'%')).\
+                filter(Player.player_id > 2)
+                #filter(Player.active_ind == True).\
+        q2 = session.query(PlayerNick.player_id, PlayerNick.nick, PlayerNick.stripped_nick, PlayerNick.create_dt, literal_column("1").label("is_alias")).\
+                filter(func.upper(PlayerNick.stripped_nick).like('%'+nick.upper()+'%')).\
+                filter(PlayerNick.player_id > 2)
+        q = q1.union(q2)
+        q = q.order_by(case([(func.upper(Player.stripped_nick).like(nick.upper()+'%'), "0")], else_="1"))
+        q = q.order_by(func.upper(Player.stripped_nick))
 
     # server-only searches
     elif server_name and not nick and not map_name and not create_dt \
@@ -40,6 +42,7 @@ def search_q(nick=None, server_name=None, map_name=None, create_dt=None,
         if server_name:
             q = q.filter(func.upper(Server.name).\
                     like('%'+server_name.upper()+'%')).\
+                    filter(Server.active_ind == True).\
                     order_by(Server.server_id)
 
     # map-only searches

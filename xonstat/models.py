@@ -19,6 +19,9 @@ Base = declarative_base()
 
 # define objects for all tables
 class Player(object):
+    def __init__(self):
+        self.create_dt = dt.utcnow()
+
     def nick_html_colors(self, limit=None):
         if self.nick is None:
             return "Anonymous Player"
@@ -71,10 +74,10 @@ class Weapon(object):
 
 class Server(object):
     def __init__(self, name=None, hashkey=None, ip_addr=None):
+        self.create_dt = dt.utcnow()
         self.name = name
         self.hashkey = hashkey
         self.ip_addr = ip_addr
-        self.create_dt = dt.utcnow()
 
     def __repr__(self):
         return "<Server(%s, %s)>" % (self.server_id, self.name.encode('utf-8'))
@@ -95,6 +98,7 @@ class Server(object):
 
 class Map(object):
     def __init__(self, name=None):
+        self.create_dt = dt.utcnow()
         self.name = name
 
     def __repr__(self):
@@ -116,6 +120,7 @@ class Map(object):
 class Game(object):
     def __init__(self, game_id=None, start_dt=None, game_type_cd=None,
             server_id=None, map_id=None, winner=None, score1=None, score2=None, rounds=None):
+        self.create_dt = dt.utcnow()
         self.game_id = game_id
         self.start_dt = start_dt
         self.game_type_cd = game_type_cd
@@ -145,8 +150,8 @@ class Game(object):
 
 class PlayerGameStat(object):
     def __init__(self, player_game_stat_id=None, create_dt=None):
+        self.create_dt = create_dt or dt.utcnow()
         self.player_game_stat_id = player_game_stat_id
-        self.create_dt = create_dt
 
     def __repr__(self):
         return "<PlayerGameStat(%s, %s, %s)>" % (self.player_id, self.game_id, self.create_dt)
@@ -201,6 +206,7 @@ class PlayerAchievement(object):
 
 class PlayerWeaponStat(object):
     def __init__(self, player_id=None, game_id=None, weapon_cd=None):
+        self.create_dt = dt.utcnow()
         self.player_id = player_id
         self.game_id = game_id
         self.weapon_cd = weapon_cd
@@ -240,6 +246,9 @@ class Hashkey(object):
 
 
 class PlayerNick(object):
+    def __init__(self):
+        self.create_dt = dt.utcnow()
+
     def __repr__(self):
         return "<PlayerNick(%s, %s)>" % (self.player_id, qfont_decode(self.stripped_nick))
 
@@ -249,7 +258,7 @@ class PlayerNick(object):
 
 class PlayerElo(object):
     def __init__(self, player_id=None, game_type_cd=None, elo=None):
-
+        self.create_dt = dt.utcnow()
         self.player_id = player_id
         self.game_type_cd = game_type_cd
         self.elo = 100.0;
@@ -319,8 +328,8 @@ class SummaryStat(object):
 
 class TeamGameStat(object):
     def __init__(self, team_game_stat_id=None, create_dt=None):
+        self.create_dt = create_dt or dt.utcnow()
         self.team_game_stat_id = team_game_stat_id
-        self.create_dt = create_dt
 
     def __repr__(self):
         return "<TeamGameStat(%s, %s, %s)>" % (self.team_game_stat_id, self.game_id, self.team)

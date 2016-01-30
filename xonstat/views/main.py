@@ -15,6 +15,7 @@ from webhelpers.paginate import Page
 log = logging.getLogger(__name__)
 
 
+# these slow running queries are no longer used in qlstats
 @cache_region('hourly_term')
 def get_summary_stats(cutoff_days=None):
     """
@@ -26,6 +27,7 @@ def get_summary_stats(cutoff_days=None):
     This information is then summarized into a string which is passed
     directly to the template.
     """
+    return ""
     try:
         if cutoff_days is not None:
             # only games played during this range are considered
@@ -92,30 +94,6 @@ def get_summary_stats(cutoff_days=None):
     return stat_line
 
 
-@cache_region('hourly_term')
-def get_ranks(game_type_cd):
-    """
-    Gets a set number of the top-ranked people for the specified game_type_cd.
-
-    The game_type_cd parameter is the type to fetch. Currently limited to
-    duel, dm, ctf, and tdm.
-    """
-    # how many ranks we want to fetch
-    leaderboard_count = 10
-
-    # only a few game modes are actually ranked
-    # if game_type_cd not in 'duel' 'ffa' 'ctf' 'tdm' 'ca':
-    #    return None
-
-    ranks = DBSession.query(PlayerRank, Player).\
-            join(Player, Player.player_id == PlayerRank.player_id).\
-            filter(PlayerRank.game_type_cd==game_type_cd).\
-            order_by(PlayerRank.rank).\
-            limit(leaderboard_count).all()
-
-    return ranks
-
-
 def top_players_by_time_q(cutoff_days):
     """
     Query for the top players by the amount of time played during a date range.
@@ -163,7 +141,7 @@ def get_top_players_by_time(cutoff_days):
     return top_players
 
 
-def top_servers_by_players_q(cutoff_days):
+def top_servers_by_players_q(cutoff_days, region = None, game_type_cd = None):
     """
     Query to get the top servers by the amount of players active
     during a date range.
@@ -181,12 +159,15 @@ def top_servers_by_players_q(cutoff_days):
         order_by(expr.desc(func.count(Game.game_id))).\
         group_by(Server.server_id).\
         group_by(Server.name)
-
+    if region and region != "" and region != "0":
+      top_servers_q = top_servers_q.filter(Server.region == region)
+    if game_type_cd and game_type_cd != "":
+      top_servers_q = top_servers_q.filter(Game.game_type_cd == game_type_cd)
     return top_servers_q
 
 
 @cache_region('hourly_term')
-def get_top_servers_by_players(cutoff_days):
+def get_top_servers_by_players(cutoff_days, region = None, game_type_cd = None):
     """
     The top servers by the amount of players active during a date range.
 
@@ -194,13 +175,11 @@ def get_top_servers_by_players(cutoff_days):
     """
     # how many to retrieve
     count = 10
-
-    top_servers = top_servers_by_players_q(cutoff_days).limit(count).all()
-
+    top_servers = top_servers_by_players_q(cutoff_days, region, game_type_cd).limit(count).all()
     return top_servers
 
 
-def top_maps_by_times_played_q(cutoff_days):
+def top_maps_by_times_played_q(cutoff_days, region = None, game_type_cd = None):
     """
     Query to retrieve the top maps by the amount of times it was played
     during a date range.
@@ -219,145 +198,87 @@ def top_maps_by_times_played_q(cutoff_days):
             group_by(Game.map_id).\
             group_by(Map.name)
 
+    if region and region != "" and region != "0":
+      top_maps_q = top_maps_q.filter(Server.region==region).filter(Server.server_id==Game.server_id)
+    if game_type_cd and game_type_cd != "":
+      top_maps_q = top_maps_q.filter(Game.game_type_cd == game_type_cd)    
+
     return top_maps_q
 
 
 @cache_region('hourly_term')
-def get_top_maps_by_times_played(cutoff_days):
+def get_top_maps_by_times_played(cutoff_days, region = None, game_type_cd = None):
     """
     The top maps by the amount of times it was played during a date range.
 
     Games older than cutoff_days days old are ignored.
     """
-    # how many to retrieve
     count = 10
-
-    top_maps = top_maps_by_times_played_q(cutoff_days).limit(count).all()
-
+    top_maps = top_maps_by_times_played_q(cutoff_days, region, game_type_cd).limit(count).all()
     return top_maps
 
 @cache_region('seconds_term')
 def get_recent_games(limit):
     return recent_games_q().limit(limit).all()
 
-def _main_index_data(request):
-    try:
-        leaderboard_lifetime = int(
-                request.registry.settings['xonstat.leaderboard_lifetime'])
-    except:
-        leaderboard_lifetime = 30
 
-    leaderboard_count = 10
-    recent_games_count = 20
-
-    # summary statistics for the tagline
-    stat_line = get_summary_stats()
-    day_stat_line = get_summary_stats(1)
-
-
-    # the three top ranks tables
-    ranks = []
-    #for gtc in ['duel', 'ca', 'ctf', 'tdm', 'ffa', 'ft', 'race']:
-    #    rank = get_ranks(gtc)
-    #    if len(rank) != 0:
-    #        ranks.append(rank)
-
-    right_now = datetime.utcnow()
-    back_then = datetime.utcnow() - timedelta(days=leaderboard_lifetime)
-
-    # top players by playing time
-    #top_players = get_top_players_by_time(leaderboard_lifetime)
-    top_players = []
-
-    # top servers by number of total players played
-    top_servers = get_top_servers_by_players(leaderboard_lifetime)
-
-    # top maps by total times played
-    top_maps = get_top_maps_by_times_played(leaderboard_lifetime)
-
-    # recent games played in descending order
-    rgs = get_recent_games(recent_games_count)
-    recent_games = [RecentGame(row) for row in rgs]
-
-    return {'top_players':top_players,
-            'top_servers':top_servers,
-            'top_maps':top_maps,
-            'recent_games':recent_games,
-            'ranks':ranks,
-            'stat_line':stat_line,
-            'day_stat_line':day_stat_line,
-            }
 
 
 def main_index(request):
-    """
-    Display the main page information.
-    """
-    mainindex_data =  _main_index_data(request)
-
-    # FIXME: code clone, should get these from _main_index_data
-    leaderboard_count = 10
-    recent_games_count = 20
-
-    for i in range(leaderboard_count-len(mainindex_data['top_players'])):
-        mainindex_data['top_players'].append(('-', '-', '-'))
-
-    for i in range(leaderboard_count-len(mainindex_data['top_servers'])):
-        mainindex_data['top_servers'].append(('-', '-', '-',None,None))
-
-    for i in range(leaderboard_count-len(mainindex_data['top_maps'])):
-        mainindex_data['top_maps'].append(('-', '-', '-'))
-
-    return mainindex_data
+    # recent games played in descending order
+    recent_games = [RecentGame(row) for row in get_recent_games(20)]
+    return {'recent_games':recent_games}
 
 
-def main_index_json(request):
-    """
-    JSON output of the main page information.
-    """
-    return [{'status':'not implemented'}]
-
+def recent_games_json(request):
+    recent_games = [RecentGame(row) for row in get_recent_games(20)]
+    return {'recent_games':recent_games}
+  
 
 def top_players_by_time(request):
+    return {'top_players': []}
     current_page = request.params.get('page', 1)
-
-    cutoff_days = int(request.registry.settings.\
-        get('xonstat.leaderboard_lifetime', 30))
-
+    cutoff_days = int(request.registry.settings.get('xonstat.leaderboard_lifetime', 30))
     top_players_q = top_players_by_time_q(cutoff_days)
-
     top_players = Page(top_players_q, current_page, items_per_page=25, url=page_url)
-
-    top_players.items = [(player_id, html_colors(nick), score) \
-            for (player_id, nick, score) in top_players.items]
-
+    top_players.items = [(player_id, html_colors(nick), score) for (player_id, nick, score) in top_players.items]
     return {'top_players':top_players}
 
 
+def top_servers_json(request):
+    region = request.params.get("region") or request.cookies.get("region")
+    game_type_cd = request.params.get("gametype") or request.cookies.get("gametype")
+    leaderboard_lifetime = int(request.registry.settings.get('xonstat.leaderboard_lifetime', 30))
+    top_servers = get_top_servers_by_players(leaderboard_lifetime, region, game_type_cd)
+    return { "region": region, "gametype": game_type_cd, "servers": top_servers }
+
 def top_servers_by_players(request):
     current_page = request.params.get('page', 1)
-
-    cutoff_days = int(request.registry.settings.\
-        get('xonstat.leaderboard_lifetime', 30))
-
-    top_servers_q = top_servers_by_players_q(cutoff_days)
-
+    cutoff_days = int(request.registry.settings.get('xonstat.leaderboard_lifetime', 30))
+    region = request.params.get("region") or request.cookies.get("region")
+    game_type_cd = request.params.get("gametype") or request.cookies.get("gametype")
+    top_servers_q = top_servers_by_players_q(cutoff_days, region, game_type_cd)
     top_servers = Page(top_servers_q, current_page, items_per_page=25, url=page_url)
-
     return {'top_servers':top_servers}
 
 
+def top_maps_json(request):
+    region = request.params.get("region") or request.cookies.get("region")
+    game_type_cd = request.params.get("gametype") or request.cookies.get("gametype")
+    leaderboard_lifetime = int(request.registry.settings.get('xonstat.leaderboard_lifetime', 30))
+    return { "region": region, "gametype": game_type_cd, "maps": [] }
+    top_maps = get_top_maps_by_times_played(leaderboard_lifetime, region, game_type_cd)
+    return { "region": region, "gametype": game_type_cd, "maps": top_maps }
+
 def top_maps_by_times_played(request):
     current_page = request.params.get('page', 1)
-
-    cutoff_days = int(request.registry.settings.\
-        get('xonstat.leaderboard_lifetime', 30))
-
-    top_maps_q = top_maps_by_times_played_q(cutoff_days)
-
+    cutoff_days = int(request.registry.settings.get('xonstat.leaderboard_lifetime', 30))
+    region = request.params.get("region") or request.cookies.get("region")
+    game_type_cd = request.params.get("gametype") or request.cookies.get("gametype")
+    return { "region": region, "gametype": game_type_cd, 'top_maps':[]}
+    top_maps_q = top_maps_by_times_played_q(cutoff_days, region, game_type_cd)
     top_maps = Page(top_maps_q, current_page, items_per_page=25, url=page_url)
-
-    return {'top_maps':top_maps}
+    return { "region": region, "gametype": game_type_cd, 'top_maps':top_maps}
 
 def news_index(request):
     return {}

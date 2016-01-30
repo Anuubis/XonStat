@@ -7,7 +7,7 @@
 
 /* Primary elements */
 body {
-  margin-top: 60px;
+  margin-top: 51px;
     background: #444 ;	
     color: #D0D0D0;
     font-family: "Open Sans", sans-serif;
@@ -102,6 +102,7 @@ table td {
   background: #222;
     --background: none repeat scroll 0 0 rgba(0, 0, 0, 0.5);
     border-radius: 15px 15px 15px 15px;
+  margin-top: 15px;
     margin-bottom: 30px;
     margin-left: 0px;
     padding: 20px;
@@ -126,27 +127,6 @@ table td {
   padding-left: 20px;
 }
 
-/* Navigation bar */
-
-/*
-.navbar {
-    margin-bottom: 10px;
-}
-.navbar-brand {
-    margin-left: 0;
-    padding-bottom: 0px;
-    padding-top: 10px;
-    text-align: left;
-}
-.navbar-inverse {
-    background: none repeat scroll 0 0 rgba(0, 0, 0, 0.6);
-}
-.navbar-inverse .nav>.active>a, .navbar-inverse .nav>.active>a:hover, .navbar-inverse .nav>.active>a:focus {
-    background: none repeat scroll 0 0 rgba(49, 49, 49, 0.6);
-}
-.navbar-inverse .nav>li>a, .navbar-brand {
-}
-  */
 .search, input[type="search"] {
     background-color: #606060;
     border: 1px solid #202020;
@@ -362,12 +342,15 @@ img.flag { margin-top: -3px; margin-bottom: -3px }
 .abstime { white-space: pre; }
 
 #chartRow h3 { display: inline-block;margin-right: 40px;cursor: pointer;border-bottom: #444 solid thick; }
-#chartRow h3.selected { border-bottom: #ccc solid thick; }
+#chartRow h3:hover { border-bottom: #888 solid thick; }
+#chartRow h3.selected { border-bottom: #ccc solid thick !important; }
 #chartRow h4 { display: inline-block;margin-right: 20px;cursor: pointer;border-bottom: #444 solid thick; }
-#chartRow h4.selected { border-bottom: #ccc solid thick; }
+#chartRow h4:hover { border-bottom: #888 solid thick; }
+#chartRow h4.selected { border-bottom: #ccc solid thick !important; }
 #chartRow svg>g:nth-child(2)>g { cursor: pointer; }
 #ratingSelection a { cursor:pointer;border-left: #444 solid thick;padding-left: 3px;}
-#ratingSelection a.selected { border-left: #ccc solid thick; }
+#ratingSelection a:hover { border-left: #888 solid thick; }
+#ratingSelection a.selected { border-left: #ccc solid thick !important; }
 
 .newsitem { background-color:#666;padding:10px;border-radius:10px;margin-top:0px;margin:10px }
 
@@ -375,10 +358,28 @@ span.ql0 { color: rgb(128,128,128); }
 span.ql1 { color: rgb(255, 0, 0); }
 span.ql2 { color: rgb(51, 255, 0); }
 span.ql3 { color: rgb(255, 255, 0); }
-span.ql4 { color:rgb(51,102,255); }
-span.ql5 { color:rgb(51,255,255); }
-span.ql6 { color:rgb(197,0,255); }
-span.ql7 { color:rgb(204,204,204); }
+span.ql4 { color: rgb(51,102,255); }
+span.ql5 { color: rgb(51,255,255); }
+span.ql6 { color: rgb(197,0,255); }
+span.ql7 { color: rgb(204,204,204); }
+
+img.info {
+  content: url(/static/images/info.png);
+  margin-left: 10px;
+  padding-left: 0px;
+  padding-bottom: 5px;
+  cursor: help;
+}
+
+#filterBar { background-color: #333;padding-top: 10px;}
+#filterBar ul { display: inline-block;padding: 0 50px;}
+#filterBar li { display: inline-block;padding-left: 5px;padding-right: 5px;cursor: pointer;margin: 0;border-bottom: #555 solid thick;}
+#filterBar li:hover { border-bottom: #888 solid thick; }
+#filterBar li.selected { border-bottom: #ccc solid thick !important; }
+
+@media (max-width:935px){
+  nav form {display:none}
+}
 
 /* bootstrap overrides */
 

@@ -505,7 +505,7 @@ def get_damage_stats(player_id, weapon_cd, games):
 
 def player_info_data(request):
     player_id = int(request.matchdict['id'])
-    game_type_cd = request.params.get("game_type_cd");
+    game_type_cd = request.params.get("game_type_cd") or request.cookies.get("gametype")
     if player_id <= 2:
         player_id = -1;
     
@@ -513,7 +513,8 @@ def player_info_data(request):
         row = DBSession.query(Player, Hashkey).\
                 join(Hashkey, Hashkey.player_id == Player.player_id).\
                 filter((Player.player_id == player_id) | (Hashkey.hashkey == str(player_id))).\
-                filter(Player.active_ind == True).first()
+                first()
+                #filter(Player.active_ind == True)
 
         if row is not None:
                 player_id = row.Player.player_id
@@ -603,11 +604,9 @@ def player_game_index_data(request):
     except:
         player_id = -1
 
-    game_type_cd = None
+    game_type_cd = request.params.get("game_type_cd") or request.cookies.get("gametype")
     game_type_descr = None
-
-    if request.params.has_key('type'):
-        game_type_cd = request.params['type']
+    if game_type_cd:
         try:
             game_type_descr = DBSession.query(GameType.descr).\
                 filter(GameType.game_type_cd == game_type_cd).\
@@ -627,7 +626,6 @@ def player_game_index_data(request):
     try:
         player = DBSession.query(Player).\
                 filter_by(player_id=player_id).\
-                filter(Player.active_ind == True).\
                 one()
 
         rgs_q = recent_games_q(player_id=player.player_id,

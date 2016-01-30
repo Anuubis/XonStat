@@ -486,6 +486,7 @@ def get_or_create_player(session=None, hashkey=None, nick=None):
                 player.player_id, hashkey))
         except:
             player = Player()
+            player.create_dt = datetime.datetime.utcnow()
             session.add(player)
             session.flush()
 
@@ -572,6 +573,7 @@ def create_game_stat(session, game_meta, game, server, gmap, player, events):
 
     # these fields should be on every pgstat record
     pgstat.game_id       = game.game_id
+    pgstat.create_dt     = datetime.datetime.utcnow()
     pgstat.player_id     = player.player_id
     pgstat.nick          = events.get('n', 'Anonymous Player')[:128]
     pgstat.stripped_nick = strip_colors(qfont_decode(pgstat.nick))
@@ -840,11 +842,11 @@ def submit_stats(request):
             for events in raw_players:
                 if events["rank"] == "1": score1 = events["scoreboard-score"]
                 if events["rank"] == "2": score2 = events["scoreboard-score"]
-        log.debug("score1=" + str(score1) + ", score2=" + str(score2))
 
+        now = datetime.datetime.utcnow()
         game = create_game(
                 session      = session,
-                start_dt     = datetime.datetime.utcfromtimestamp(int(game_meta['1'])) if '1' in game_meta else datetime.datetime.utcnow(),
+                start_dt     = datetime.datetime.utcfromtimestamp(int(game_meta['1'])) if '1' in game_meta else now,
                 server_id    = server.server_id,
                 game_type_cd = game_type_cd,
                 map_id       = gmap.map_id,
@@ -863,8 +865,7 @@ def submit_stats(request):
                 hashkey = events['P'],
                 nick    = events.get('n', None))
 
-            pgstat = create_game_stat(session, game_meta, game, server,
-                    gmap, player, events)
+            pgstat = create_game_stat(session, game_meta, game, server, gmap, player, events)
 
             if player.player_id > 1:
                 anticheats = create_anticheats(session, pgstat, game, player,

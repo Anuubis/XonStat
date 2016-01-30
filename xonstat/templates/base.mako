@@ -1,4 +1,5 @@
 ﻿<%namespace name="nav" file="nav.mako"/>
+
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -28,6 +29,22 @@
       })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
       ga('create', 'UA-71098578-1', 'auto');
       ga('send', 'pageview');
+
+      function setCookie(name, value) {
+        if (value === null || value === undefined)
+          value = "";
+        document.cookie = name + "=" + value + "; expires=Tue, 1 Jan 2030 12:00:00 UTC; path=/";
+      }
+      function getCookie(name) {
+        var match = document.cookie.match(new RegExp(name + "=([^;]*)"));
+        return match ? match[1] : null;
+      }
+      if (!document.cookie.match(/region=\d/))
+        setCookie("region", "0");
+      if (!document.cookie.match(/gametype=[a-z]*/))
+        setCookie("gametype", "");
+      if (!document.cookie.match(/weapons=[a-z]*/))
+        setCookie("weapons", "mg,lg,rg,hmg");
     </script>
   </head>
 
@@ -62,14 +79,25 @@
       </div>
       </%block>
 
-      <%block name="js">
-      <script type='text/javascript' src='//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js'></script>
-      <!--<script type='text/javascript' src='/static/js/bootstrap.min.js'></script>-->
-      <script src="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
-      </%block>
+    </div>
 
-      <!-- RELATIVE TIME CONVERSION -->
-      <script type="text/javascript">
+    <%block name="js">
+    <script type='text/javascript' src='//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js'></script>
+    <!--<script type='text/javascript' src='/static/js/bootstrap.min.js'></script>-->
+    <script src="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+    <script>
+      var entityMap = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': '&quot;', "'": '&#39;', "/": '&#x2F;' };
+      function escapeHtml(string) { return String(string).replace(/[&<>"'\/]/g, function (s) { return entityMap[s]; }); }
+      function htmlColors(text) {
+        text = escapeHtml(text);
+        return "<span class='ql7'>" + text.replace(/\^[0-7]/g, function(match) { return "</span><span class='ql" + match[1] + "'>"; }) + "</span>";
+      }
+
+    </script>
+    </%block>
+
+    <script type="text/javascript">
+      // RELATIVE TIME CONVERSION
       $('.abstime').each(function(i,e){
         var $e = $(e);
         var epoch = $e.attr('data-epoch');
@@ -80,8 +108,7 @@
         $e.attr("title", $e.text());
         $e.text(dt + "   " + tm);
       });
-      </script>
+    </script>
 
-    </div>
   </body>
 </html>

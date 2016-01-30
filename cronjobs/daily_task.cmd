@@ -6,8 +6,6 @@ set pgpassword=xonstat
 
 cd ..\sql
 %psql% -U xonstat -w xonstatdb <update_player_region.sql
-
-cd ..\..\xonstatdb\scripts
 %psql% -U xonstat -w xonstatdb <update_ranks.sql
 
 cd "%curdir%""

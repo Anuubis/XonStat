@@ -1,7 +1,10 @@
 <%inherit file="base.mako"/>
 <%namespace name="nav" file="nav.mako" />
 <%namespace file="navlinks.mako" import="navlinks" />
-
+<%
+from xonstat.util import html_colors
+import datetime
+%>
 <%block name="navigation">
 <%
 navareas = { "player": "players", "server": "servers", "map": "maps", "game": "games"}
@@ -104,25 +107,29 @@ Advanced Search
 % if result_type == "player":
 <div class="row">
   <div class="col-sm-12 col-md-6 col-md-offset-3">
-    <table class="table table-hover table-condensed">
-      <tr>
-        <th style="width:100px;">Player ID</th>
-        <th>Nick</th>
-        <th class="create-dt">Joined</th>
-        <th></th>
-      </tr>
-      % for player in results:
-      <tr>
-        <td>${player.player_id}</th>
-        <td class="player-nick"><a href="${request.route_url("player_info", id=player.player_id)}" title="Go to this player's info page">${player.nick_html_colors()|n}</a></th>
-        <td><span class="abstime" data-epoch="${player.epoch()}" title="${player.create_dt.strftime('%a, %d %b %Y %H:%M:%S UTC')}">${player.joined_pretty_date()}</span></th>
-        <td class="tdcenter">
-          <a href="${request.route_url("player_game_index", player_id=player.player_id, page=1)}" title="View recent games by this player">
-            <i class="glyphicon glyphicon-list"></i>
-          </a>
-        </td>
-      </tr>
-      % endfor
+    <table class="table table-hover table-condensed" style="table-layout:fixed">
+      <thead>
+        <tr>
+          <th style="width:100px;">Player ID</th>
+          <th>Nick</th>
+          <th class="create-dt" style="width:180px;">Joined</th>
+          <th style="width:60px;">Games</th>
+        </tr>
+      </thead>
+      <tbody>
+        % for (player_id, nick, stripped_nick, create_dt, is_alias) in results:
+        <tr>
+          <td>${player_id}</td>
+          <td class="player-nick"><a href="${request.route_url("player_info", id=player_id)}" title="Go to this player's info page">${html_colors(nick)|n}</a></td>
+          <td><span class="abstime" data-epoch="${int((create_dt - datetime.datetime(1970,1,1)).total_seconds())}">${create_dt.strftime('%Y-%m-%d')}</span></td>
+          <td class="tdcenter">
+            <a href="${request.route_url("player_game_index", player_id=player_id, page=1)}" title="View recent games by this player">
+              <i class="glyphicon glyphicon-list"></i>
+            </a>
+          </td>
+        </tr>
+        % endfor
+      </tbody>
     </table>
   </div>
 </div>

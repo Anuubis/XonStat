@@ -22,18 +22,26 @@ Server Information
 <script>
 function loadLivePlayers() {
   var url = "${request.registry.settings.get('qlstat.feeder_webapi_url', '')}" || "http://" + location.hostname + ":8081";
-  var url = url.replace(/\/$/, "") + "/api/server/${server.ip_addr}:${server.port}/players";
+  url = url.replace(/\/$/, "") + "/api/server/${server.ip_addr}:${server.port}/players";
+
   $.getJSON(url, function(data) {
     if (!data.ok)
       return;
     data.players.sort(function(a,b) {
       var c = [5,3,1,2,4][a.team+1] - [5,3,1,2,4][b.team+1]; // red, blue, free, spec, unknown
       if (c != 0) return c;
-      return (b.rating||0) - (a.rating||0) 
+      return (b.rating||0) - (a.rating||0)
     });
     var $table=$("#livePlayers tbody");
     var rows = $table.children();
-    for (var i=0, c=data.players.length; i<10; i++) {
+
+    if (rows.length > Math.max(10, data.players.length))
+      rows.slice(Math.max(data.players.length, 10)).remove();
+    for (var i=rows.length; i<data.players.length; i++)
+      $table.append("<tr><td></td><td style='overflow-x:hidden;white-space:nowrap'>&nbsp;</td><td></td></tr>");
+    rows=$table.children();
+
+    for (var i=0, c=data.players.length; i<c; i++) {
       var player = data.players[i];
       var cells = $(rows[i]).children();
       $(cells[0]).text(i<c ? ["Play", "Red", "Blue", "Spec" ][player.team] : "")
@@ -41,29 +49,23 @@ function loadLivePlayers() {
         $(cells[1]).html($("<a href='/player/" + player.steamid + "'></a>").append(htmlColors(player.name)));
       else
         $(cells[1]).html("&nbsp;");
-      $(cells[2]).text(i<c ? player.rating : "")
-    }    
+      $(cells[2]).text(i<c ? player.rating : "").attr("title", "\xb1 " + player.rd).css("cursor", "help");
+    }
+    for (; i<10; i++) {
+      var cells = $(rows[i]).children();
+      $(cells[0]).html("");
+      $(cells[1]).html("&nbsp;");
+      $(cells[2]).html("");
+    }
+
+    $map = $("#mapname");
+    $map.text(data.serverinfo.map);
+    $map.attr("href", "/map/" + encodeURIComponent(data.serverinfo.map));
   });
 }
 
-htmlColorTable = [
- "<span style='color:rgb(128,128,128)'>",
- "<span style='color:rgb(255,0,0)'>",
- "<span style='color:rgb(51,255,0)'>",
- "<span style='color:rgb(255,255,0)'>",
- "<span style='color:rgb(51,102,255)'>",
- "<span style='color:rgb(51,255,255)'>",
- "<span style='color:rgb(197,0,255)'>",
- "<span style='color:rgb(204,204,204)'>",
- "<span style='color:rgb(153,153,153)'>",
- "<span style='color:rgb(128,128,128)'>"
-];
-
-function htmlColors(text) {
-  return htmlColorTable[7] + text.replace(/\^[0-7]/g, function(match) { 
-    return "</span>" + htmlColorTable[parseInt(match[1])] 
-  }) + "</span>";
-}
+// set fixed height to 10 rows so scrollbar appears if necessary
+$("#livePlayersDiv").css("height", $("#topPlayersTable").height() + "px");
 
 loadLivePlayers();
 </script>
@@ -86,30 +88,33 @@ loadLivePlayers();
       <br />Added <span class="abstime" data-epoch="${server.epoch()}" title="${server.create_dt.strftime('%a, %d %b %Y %H:%M:%S UTC')}">${server.fuzzy_date()}</span>
       <br />Location: 
             % if server.country is not None:
-            <img src="/static/images/flags/${server.country}.png" width="16" height="16" class="flag"> ${server.location}
+            <img src="/static/images/flags/${(server.country or "").lower()}.png" width="16" height="16" class="flag"> ${server.location}
             % else:
               unknown
             % endif
     </p>
-    <a class="btn btn-primary btn-small" style="vertical-align:top; margin-left: 30px" href="steam://connect/${server.ip_addr}:${server.port}" title="Connect to game server">Join Server</a>
+    <p style="display:inline-block;vertical-align:top;margin-left:30px">
+      Map: <a id="mapname" href=""></a>
+      <br /><a class="btn btn-primary btn-small" style="vertical-align:top; margin-top: 10px" href="steam://connect/${server.ip_addr}:${server.port}" title="Connect to game server">Join Server</a>
+    </p>
   </div>
 </div>
 
 
 <div class="row">
 
-  <div class="col-md-6">
-    <div class="row">
-      <div class="col-sm-6">
-        <h3>Now Playing <span style="color:red;font-size:large">&#x25cf;</span></h3>
-        <table class="table table-hover table-condensed" id="livePlayers" style="table-layout:fixed">
-          <thead>
-            <tr>
-              <th style="width:50px;">Team</th>
-              <th>Nick</th>
-              <th style="width:55px;">Glicko</th>
-            </tr>
-          </thead>
+  <div class="col-sm-4">
+    <h3>Now Playing <span style="color:red;font-size:large">&#x25cf;</span></h3>
+    <div id="livePlayersDiv" style="overflow-y:auto">
+      <table class="table table-hover table-condensed" id="livePlayers" style="table-layout:fixed;margin-bottom:0">
+        <thead>
+          <tr>
+            <th style="width:50px;">Team</th>
+            <th>Nick</th>
+            <th style="width:55px;">Glicko</th>
+          </tr>
+        </thead>
+        <tbody>
           % for i in range(0, 10):
           <tr>
             <td></td>
@@ -117,100 +122,66 @@ loadLivePlayers();
             <td></td>
           </tr>
           % endfor
-          <tbody></tbody>
-        </table>
-      </div> <!-- /span4 -->
-
-
-      <div class="col-sm-6">
-        <h3>Top Scoring Players</h3>
-        <table class="table table-hover table-condensed">
-          <thead>
-            <tr>
-              <th style="width:40px;">#</th>
-              <th style="width:150px;">Nick</th>
-              <th style="width:90px;">Score</th>
-            </tr>
-          </thead>
-          <tbody>
-            <% i = 1 %>
-            % for (score_player_id, score_nick, score_value) in top_scorers:
-            <tr>
-              <td>${i}</td>
-              % if score_player_id != '-':
-              <td class="nostretch" style="max-width:150px;"><a href="${request.route_url('player_info', id=score_player_id)}" title="Go to the player info page for this player">${score_nick|n}</a></td>
-              % else:
-              <td class="nostretch" style="max-width:150px;">${score_nick}</td>
-              % endif
-              <td>${score_value}</td>
-            </tr>
-            <% i = i+1 %>
-            % endfor
-          </tbody>
-        </table>
-      </div> <!-- /span4 -->
+        </tbody>
+      </table>
     </div>
-  </div>
+  </div> <!-- /span4 -->
 
-  <div class="col-md-6">
-    <div class="row">
-      <div class="col-sm-6">
-        <h3>Most Active Players</h3>
-        <table class="table table-hover table-condensed">
-          <thead>
-            <tr>
-              <th style="width:40px;">#</th>
-              <th>Nick</th>
-              <th style="width:90px;">Play Time</th>
-            </tr>
-          </thead>
-          <tbody>
-            <% i = 1 %>
-            % for (player_id, nick, alivetime) in top_players:
-            <tr>
-              <td>${i}</td>
-              % if player_id != '-':
-              <td><a href="${request.route_url('player_info', id=player_id)}" title="Go to the player info page for this player">${nick|n}</a></td>
-              % else:
-              <td>${nick}</td>
-              % endif
-              <td>${None if not type(alivetime) is datetime.timedelta else round(alivetime.total_seconds()/3600,1)}h</td>
-            </tr>
-            <% i = i+1 %>
-            % endfor
-          </tbody>
-        </table>
-      </div> <!-- /span4 -->
+  <div class="col-sm-4">
+    <h3>Most Active Players</h3>
+    <table class="table table-hover table-condensed">
+      <thead>
+        <tr>
+          <th style="width:40px;">#</th>
+          <th>Nick</th>
+          <th style="width:90px;">Play Time</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% i = 1 %>
+        % for (player_id, nick, alivetime) in top_players:
+        <tr>
+          <td>${i}</td>
+          % if player_id != '-':
+          <td><a href="${request.route_url('player_info', id=player_id)}" title="Go to the player info page for this player">${nick|n}</a></td>
+          % else:
+          <td>${nick}</td>
+          % endif
+          <td>${None if not type(alivetime) is datetime.timedelta else round(alivetime.total_seconds()/3600,1)}h</td>
+        </tr>
+        <% i = i+1 %>
+        % endfor
+      </tbody>
+    </table>
+  </div> <!-- /span4 -->
 
-      <div class="col-sm-6">
-        <h3>Most Active Maps</h3>
-        <table class="table table-hover table-condensed">
-          <thead>
-            <tr>
-              <th style="width:40px;">#</th>
-              <th>Map</th>
-              <th style="width:120px;"># Games</th>
-            </tr>
-          </thead>
-          <tbody>
-            <% i = 1 %>
-            % for (map_id, name, count) in top_maps:
-            <tr>
-              <td>${i}</td>
-              % if map_id != '-':
-              <td><a href="${request.route_url('map_info', id=map_id)}" title="Go to the map info page for ${name}">${name}</a></td>
-              % else:
-              <td>${name}</td>
-              % endif
-              <td>${count}</td>
-            </tr>
-            <% i = i+1 %>
-            % endfor
-          </tbody>
-        </table>
-      </div> <!-- /span4 -->
-    </div> <!-- /row -->
-  </div>
+  <div class="col-sm-4">
+    <h3>Most Active Maps</h3>
+    <table class="table table-hover table-condensed">
+      <thead>
+        <tr>
+          <th style="width:40px;">#</th>
+          <th>Map</th>
+          <th style="width:120px;"># Games</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% i = 1 %>
+        % for (map_id, name, count) in top_maps:
+        <tr>
+          <td>${i}</td>
+          % if map_id != '-':
+          <td><a href="${request.route_url('map_info', id=map_id)}" title="Go to the map info page for ${name}">${name}</a></td>
+          % else:
+          <td>${name}</td>
+          % endif
+          <td>${count}</td>
+        </tr>
+        <% i = i+1 %>
+        % endfor
+      </tbody>
+    </table>
+  </div> <!-- /span4 -->
 
 </div>
 

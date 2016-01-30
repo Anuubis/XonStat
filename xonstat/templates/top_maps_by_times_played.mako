@@ -1,9 +1,11 @@
 <%inherit file="base.mako"/>
 <%namespace name="nav" file="nav.mako" />
 <%namespace file="navlinks.mako" import="navlinks" />
+<%namespace file="filter.mako" import="*" />
 
 <%block name="navigation">
 ${nav.nav('maps')}
+${filter_bar()}
 </%block>
 
 <%block name="title">
@@ -52,3 +54,14 @@ Active Maps Index
     ${navlinks("top_maps_by_times_played", top_maps.page, top_maps.last_page)}
   </div> <!-- /span4 -->
 </div> <!-- /row -->
+
+
+<%block name="js">
+${parent.js()}
+${filter_js()}
+<script>
+  $("#filterBar li").click(function() {
+    window.location.reload();
+  });
+</script>
+</%block>

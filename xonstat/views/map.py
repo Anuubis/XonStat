@@ -1,4 +1,5 @@
-import logging
+﻿import logging
+import re
 import sqlalchemy.sql.functions as func
 import sqlalchemy.sql.expression as expr
 from collections import namedtuple
@@ -47,7 +48,7 @@ def map_index_json(request):
 
 
 def _map_info_data(request):
-    map_id = int(request.matchdict['id'])
+    map_id = request.matchdict['id']
 
     try:
         leaderboard_lifetime = int(
@@ -63,7 +64,12 @@ def _map_info_data(request):
         'fastest_cap', 'game_id'])
 
     try:
-        gmap = DBSession.query(Map).filter_by(map_id=map_id).one()
+        if re.match(r"\d+$", map_id):
+                map_id = int(map_id)
+                gmap = DBSession.query(Map).filter_by(map_id=map_id).one()
+        else:
+                gmap = DBSession.query(Map).filter_by(name=map_id).one()
+                map_id = gmap.map_id
 
         # recent games played in descending order
         rgs = recent_games_q(map_id=map_id).limit(recent_games_count).all()

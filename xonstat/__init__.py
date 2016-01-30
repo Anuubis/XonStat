@@ -66,6 +66,15 @@ def main(global_config, **settings):
     config.add_route("main_index", "/")
     config.add_view(main_index, route_name="main_index", renderer="main_index.mako")
 
+    config.add_route("recent_games_json", "/recentgames.json")
+    config.add_view(recent_games_json, route_name="recent_games_json", renderer="jsonp")
+
+    config.add_route("top_servers_json", "/topservers.json")
+    config.add_view(top_servers_json, route_name="top_servers_json", renderer="jsonp")
+
+    config.add_route("top_maps_json", "/topmaps.json")
+    config.add_view(top_maps_json, route_name="top_maps_json", renderer="jsonp")
+
     config.add_route("news_index", "/news")
     config.add_view(news_index, route_name="news_index", renderer="news_index.mako")
 
@@ -181,10 +190,10 @@ def main(global_config, **settings):
     config.add_route("server_game_index_json", "/server/{server_id:\d+}/games.json")
     config.add_view(server_game_index_json, route_name="server_game_index_json", renderer="jsonp")
 
-    config.add_route("server_info",      "/server/{id:\d+}")
+    config.add_route("server_info",      "/server/{id:\d+|.+\..+:\d+}")
     config.add_view(server_info,      route_name="server_info",      renderer="server_info.mako")
 
-    config.add_route("server_info_json", "/server/{id:\d+}.json")
+    config.add_route("server_info_json", "/server/{id:\d+|.+\..+:\d+}.json")
     config.add_view(server_info_json, route_name="server_info_json", renderer="jsonp")
 
     # MAP ROUTES
@@ -194,7 +203,7 @@ def main(global_config, **settings):
     config.add_route("map_index_json", "/maps.json")
     config.add_view(map_index_json, route_name="map_index_json", renderer="jsonp")
 
-    config.add_route("map_info",      "/map/{id:\d+}")
+    config.add_route("map_info",      "/map/{id}")
     config.add_view(map_info,      route_name="map_info",      renderer="map_info.mako")
 
     config.add_route("map_info_json", "/map/{id:\d+}.json")

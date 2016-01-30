@@ -4,10 +4,11 @@
   zlib = require("zlib"),
   glicko = require("./glicko1"),
   log4js = require("log4js"),
-  Q = require("q");
+  Q = require("q"),
+  utils = require("./utils");
 
-// calculate a value for "c" so that an average RD value of 85 changes back to 350 when a player is inactive for 180 rating periods (=days)
-const g2 = new glicko.Glicko({ rating: 1500, rd: 350, c: Math.sqrt((Math.pow(350, 2) - Math.pow(82, 2)) / 180) });
+// calculate a value for "c" so that an average RD value of 30 changes back to 350 when a player is inactive for 720 rating periods (=days)
+const g2 = new glicko.Glicko({ rating: 1500, rd: 350, c: Math.sqrt((Math.pow(350, 2) - Math.pow(30, 2)) / 720) });
 
 // values for DB column games.g2_status
 const
@@ -37,6 +38,7 @@ var _lastProcessedMatchStartDt;
 
 exports.rateAllGames = rateAllGames;
 exports.rateSingleGame = rateSingleGame;
+exports.createGameTypeStrategy = createGameTypeStrategy;
 
 const _logger = log4js.getLogger("gamerating");
 
@@ -48,7 +50,7 @@ function init() {
 function rateAllGames(gt, options) {
   applyOptions(gt, options);
 
-  return dbConnect()
+  return utils.dbConnect(_config.webapi.database)
     .then(function(cli) {
       return resetRatingsInDb(cli)
         .then(function() { return loadPlayers(cli); })
@@ -78,7 +80,7 @@ function rateSingleGame(gameId, game) {
   var ratingPeriod = glickoPeriod(new Date(game.gameEndTimestamp * 1000));
   g2.setPeriod(ratingPeriod);
 
-  dbConnect()
+  utils.dbConnect(_config.webapi.database)
     .then(function(cli) {
       return Q()
         .then(function() { return strategy.isSupported ? loadPlayers(cli, steamIds) : []; })
@@ -110,9 +112,9 @@ function createGameTypeStrategy(gametype) {
   var ValidFactoriesForGametype = {
     "duel": ["duel", "qcon_duel"],
     "ffa": ["ffa", "mg_ffa_classic", "cffa"],
-    "ca": ["ca", "capickup"],
-    "tdm": ["ctdm", "qcon_tdm"],
-    "ctf": ["ctf", "ctf2", "qcon_ctf"],
+    "ca": ["ca", "capickup", "hoq_ca", "mg_ca_classic"],
+    "tdm": ["ctdm", "qcon_tdm", "mg_tdm_fullclassic", "tdm_classic", "hoq_tdm"],
+    "ctf": ["ctf", "ctf2", "qcon_ctf", "hoq_ctf"],
     "ft": ["freeze", "cftag", "ft", "ftclassic", "ft_classic", "mg_ft_fullclassic", "vft", "cuft"]
   }
   var MinRequiredPlayersForGametype = {
@@ -127,9 +129,9 @@ function createGameTypeStrategy(gametype) {
     "duel": function(game) { return game.matchStats.GAME_LENGTH >= 10 * 60 - 5 || game.matchStats.EXIT_MSG.indexOf("forfeited") >= 0 },
     "ffa": function(game) { return game.matchStats.FRAG_LIMIT >= 50 },
     "ca": function(game) { return Math.max(game.matchStats.TSCORE0, game.matchStats.TSCORE1) >= 8 /* old JSONS have no ROUND_LIMIT */ },
-    "tdm": function(game) { return Math.max(game.matchStats.TSCORE0, game.matchStats.TSCORE1) >= 100 || game.matchStats.GAME_LENGTH >= 15 * 10 },
-    "ctf": function(game) { return Math.max(game.matchStats.TSCORE0, game.matchStats.TSCORE1) >= 8 || game.matchStats.GAME_LENGTH >= 15 * 10 },
-    "ft": function(game) { return Math.max(game.matchStats.TSCORE0, game.matchStats.TSCORE1) >= 8 /* old JSONS have no ROUND_LIMIT */ }
+    "tdm": function(game) { return Math.max(game.matchStats.TSCORE0, game.matchStats.TSCORE1) >= 100 || game.matchStats.GAME_LENGTH >= 15 * 60 },
+    "ctf": function(game) { return Math.max(game.matchStats.TSCORE0, game.matchStats.TSCORE1) >= 8 || game.matchStats.GAME_LENGTH >= 15 * 60 },
+    "ft": function(game) { return Math.max(game.matchStats.TSCORE0, game.matchStats.TSCORE1) >= 8 || game.matchStats.GAME_LENGTH >= 15 * 60 /* old JSONS have no ROUND_LIMIT */ }
   }
   
   // a and b are performance scores adjusted for participation time
@@ -137,8 +139,8 @@ function createGameTypeStrategy(gametype) {
     "duel": function() { return false; },
     "ffa": function(a, b, game) { return Math.abs(a - b) <= 2 * Math.max(1, game.matchStats.FRAG_LIMIT/50) },
     "ca": function(a, b) { return Math.abs(a - b) <= 2 },
-    "tdm": function(a, b) { return a / b <= 1.1 && b / a <= 1.1 },
-    "ctf": function(a, b) { return a / b <= 1.1 && b / a <= 1.1 },
+    "tdm": function(a, b) { return a / b <= 1.05 && b / a <= 1.05 },
+    "ctf": function(a, b) { return a / b <= 1.05 && b / a <= 1.05 },
     "ft": function(a, b) { return Math.abs(a - b) <= 5; }
   }
 
@@ -150,19 +152,6 @@ function createGameTypeStrategy(gametype) {
     maxTeamTimeDiff: 1.05, // in a 4on4 game with 10 mins (or rounds) it will allow up to 42 player minutes in one team
     isDraw: IsDrawForGametype[gametype] || (function () { return false; })
   }
-}
-
-function dbConnect() {
-  var defConnect = Q.defer();
-  pg.connect(_config.webapi.database, function(err, cli, release) {
-    if (err)
-      defConnect.reject(new Error(err));
-    else {
-      cli.release = release;
-      defConnect.resolve(cli);
-    }
-  });
-  return defConnect.promise;
 }
 
 function resetRatingsInDb(cli) {
@@ -194,7 +183,7 @@ function loadPlayers(cli, steamIds) {
   var params = [gametype];
   
   if (steamIds) {
-    query += " where h.hashkey in ('0'";
+    query += " where h.hashkey in ('-1'";
     steamIds.forEach(function(steamId, i) {
       query += ",$" + (i + 2);
       params.push(steamId);
@@ -411,7 +400,7 @@ function extractDataFromGameObject(game) {
 
       var pd = playerData[p.STEAM_ID];
       if (!pd) {
-        pd = { id: p.STEAM_ID, name: p.NAME, timeRed: 0, timeBlue: 0, roundsRed: 0, roundsBlue: 0, score: 0, k: 0, d: 0, dg: 0, dt: 0, a: 0, win: false };
+        pd = { id: p.STEAM_ID, name: p.NAME, timeRed: 0, timeBlue: 0, roundsRed: 0, roundsBlue: 0, score: 0, k: 0, d: 0, dg: 0, dt: 0, a: 0, win: false, quit: false };
         playerData[p.STEAM_ID] = pd;
       }
 
@@ -436,8 +425,25 @@ function extractDataFromGameObject(game) {
       pd.a += p.MEDALS.ASSISTS;
       if (p.RANK == 1)
         pd.win = true;
+      pd.quit |= p.QUIT;
+
       isTeamGame |= p.hasOwnProperty("TEAM");
     });
+    
+    // on 2016-01-14 feeder started to track play times manually to exclude the map load + warmup time from PLAY_TIME
+    if (game.playTimes) {
+      timeBlue = 0;
+      timeRed = 0;
+      game.matchStats.GAME_LENGTH = game.playTimes.total;
+      Object.keys(playerData).forEach(function(steamid) {
+        var times = game.playTimes.players[steamid];
+        if (times) {
+          var pd = playerData[steamid];
+          timeRed += pd.timeRed = times[0] + times[1];
+          timeBlue += pd.timeBlue = times[2];
+        }
+      });
+    }
   }
 
   function calculatePlayerRanking() {
@@ -521,7 +527,7 @@ function calcPlayerPerformance(p, raw) {
     return ((p.k - p.d) * 5 + (p.dg - p.dt) / 100 * 4 + p.dg / 100 * 3) * timeFactor;
 
   if (gametype == "duel")
-    return p.score;
+    return p.quit ? -1 : p.win ? 1 : 0;
 
   // then use score/rounds for CA
   if (gametype == "ca")

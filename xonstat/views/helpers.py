@@ -138,7 +138,7 @@ def recent_games_q(server_id=None, map_id=None, player_id=None,
             filter(Game.map_id==Map.map_id).\
             filter(Game.game_id==PlayerGameStat.game_id).\
             filter(Game.game_type_cd==GameType.game_type_cd).\
-            order_by(expr.desc(Game.start_dt))
+            order_by(expr.desc(Game.create_dt))
 
     # the various filters provided get tacked on to the query
     if server_id is not None:
@@ -174,7 +174,8 @@ def recent_games_q(server_id=None, map_id=None, player_id=None,
     if cutoff is not None:
         right_now = datetime.utcnow()
         recent_games_q = recent_games_q.\
-            filter(expr.between(Game.create_dt, cutoff, right_now))
+            filter(expr.between(Game.create_dt, cutoff, right_now)).\
+            filter(expr.between(PlayerGameState.create_dt, cutoff, right_now))
 
     if start_game_id is not None:
         recent_games_q = recent_games_q.filter(Game.game_id <= start_game_id)

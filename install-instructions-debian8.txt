@@ -1,0 +1,76 @@
+adduser xonstat
+su xonstat
+cd
+sudo apt-get install sudo
+sudo apt-get install git
+sudo apt-get install python  (2.7.9)
+
+git clone https://github.com/PredatH0r/XonStat.git
+mv XonStat xonstat
+chmod +x xonstat/cronjobs/*.sh
+ln -s xonstat/cronjobs/feeder.sh .
+ln -s xonstat/cronjobs/paster.sh .
+crontab -e
+# add these 4 lines to your crontab:
+@reboot ~/xonstat/cronjobs/paster.sh
+@reboot ~/xonstat/cronjobs/feeder.sh
+55 * * * * ~/xonstat/cronjobs/hourly_task.sh
+0 12 * * * ~/xonstat/cronjobs/daily_task.sh
+# -- end of crontab edit
+
+
+
+
+#====== postgres database for the website ======
+# as xonstat user in ~xonstat
+sudo apt-get install postgresql-9.4
+git clone https://github.com/antzucaro/xonstatdb.git
+sudo su postgres
+createuser -P xonstat  #use "xonstat" as password for DB-user
+echo "CREATE DATABASE xonstatdb WITH ENCODING='UTF8' OWNER=xonstat CONNECTION LIMIT=-1;" | psql
+exit
+export PGPASSWORD=xonstat
+echo "CREATE SCHEMA xonstat AUTHORIZATION xonstat;" | psql xonstatdb
+echo "CREATE LANGUAGE plpgsql;" | psql xonstatdb
+psql xonstatdb <build/build_full.sql
+psql xonstatdb <../xonstat/sql/qlstats-init.sql
+
+#====== nodejs based "feeder" process to connect to QL ZMQ =========
+# as xonstat
+sudo apt-get install nodejs  (0.10.29)
+sudo ln -s /usr/bin/nodejs /usr/bin/node
+sudo apt-get install npm
+sudo apt-get install libzmq3
+sudo apt-get install libzmq3-dev
+cd ~xonstat/xonstat/feeder
+npm install
+mkdir ql-match-jsons
+mkdir ql-match-jsons/errors
+
+
+#====== python based website ============
+
+sudo apt-get install python-pip
+sudo apt-get install python-dev
+sudo apt-get install postgresql-server-dev-9.4     # 9.4 on wily, 9.3 on trusty, ... use "apt-cache policy postgresql" to find the right version
+sudo python -m pip install pastescript
+cd ~xonstat/xonstat
+mkdir lib
+mkdir lib/python
+export PYTHONPATH=/home/xonstat/xonstat/lib/python
+python setup.py install --home=/home/xonstat/xonstat
+
+
+#====== nginx as a reverse proxy for the sites
+sudo apt-get install nginx
+
+
+#===== to simplify updates
+git config --global user.name "your-name-here"
+git config --global user.email "your@email.here"
+#--- to update:
+git stash
+git pull --rebase
+git stash pop
+
+

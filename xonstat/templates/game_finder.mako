@@ -50,6 +50,7 @@ Game Index
           <th>Time</th>
           <th>Winner</th>
           <th>Score</th>
+          <th>Rated</th>
         </tr>
       </thead>
       <tbody>
@@ -64,7 +65,7 @@ Game Index
           </td>
           <td><a href="${request.route_url('server_info', id=rg.server_id)}" title="Go to the detail page for this server">${rg.server_name}</a></td>
           <td><a href="${request.route_url('map_info', id=rg.map_id)}" title="Go to the map detail page for this map">${rg.map_name}</a></td>
-          <td><span class="abstime" data-epoch="${rg.epoch}" title="${rg.start_dt.strftime('%a, %d %b %Y %H:%M:%S UTC')}">${rg.fuzzy_date}</span></td>
+          <td><span class="abstime" data-epoch="${rg.epoch}">${rg.start_dt.strftime('%Y-%m-%d   %H:%M:%S')}</span></td>
           <td>
             % if rg.player_id > 2:
             <a href="${request.route_url('player_info', id=rg.player_id)}" title="Go to the player info page for this player">${rg.nick_html_colors|n}</a></td>
@@ -72,9 +73,20 @@ Game Index
             ${rg.nick_html_colors|n}</td>
             % endif
           <td>
-          % if rg.score1 is not None:
-          ${rg.score1}:${rg.score2}
-          % endif
+            % if rg.score1 is not None:
+            ${rg.score1 if rg.score1 is not None else "DNF"}:${rg.score2 if rg.score2 is not None else "DNF"}
+            % endif
+          </td>
+          <td class="tdcenter">
+            %if rg.g2_status == 0:
+            TBD
+            %elif rg.g2_status == 1:
+            A
+            %elif rg.g2_status == 8:
+            B
+            %else:
+            <i class="glyphicon glyphicon-minus"></i>
+            %endif
           </td>
         </tr>
         % endfor

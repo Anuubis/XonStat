@@ -31,7 +31,13 @@ Game Information
 % else:
 <div class="row">
   <div class="col-sm-12 game-detail">
-    <h2>Game Detail<span class="note"> ${game.match_id}</span></h2>
+    <h2>Game Detail
+    %if "json" in request.params:
+      <span class="note"> <a href="${request.registry.settings.get('qlstat.feeder_webapi_url','')}api/jsons/${game.start_dt.strftime('%Y-%m-%d')}/${game.match_id}.json">${game.match_id}</a></span>
+    %else:
+      <span class="note"> ${game.match_id}</span>
+    %endif
+    </h2>
     <img width="64" height="64" src="/static/images/icons/48x48/${game.game_type_cd}.png" alt="${game.game_type_cd}"/>
     <p style="display:inline-block">
     Played: <span class="abstime" data-epoch="${game.epoch()}" title="${game.start_dt.strftime('%a, %d %b %Y %H:%M:%S UTC')}">${game.fuzzy_date()}</span><br />
